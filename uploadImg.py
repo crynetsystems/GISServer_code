@@ -13,7 +13,7 @@ else:
     print "conn error!"
 #so this is the function that client invoke to upload images into mongodb.
 #the arguments the function take is the longitude and the latitude the image stand for
-#, x , y , z ,and the img_path is image's path in your computer.
+#, x , y , z ,and the img_path is image's path in your computer.https://cnodejs.org/topic/56dfa16ff5d830306e2f0f04
 def UploadImg(x,y,z,img_path):
     try:
         img = open(img_path,'rb');

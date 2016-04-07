@@ -1,5 +1,6 @@
 var http = require('http');
 var mongoose = require('mongoose');
+#make sure the dbdriver mongoose you require is at the vision of 2.8 
 mongoose.connect('mongodb://localhost/img');
 var regex = /.*\/(.+?)\/(.+?)\/(.+?)\.((jpg)|(png))/g; 
 var matches;

@@ -4,13 +4,17 @@
 import math
 import os
 import urllib2
-import threading
-import sqlite3
-
+import multiprocessing
+from time import sleep
+maxthreads = 50;
+maxlinksize = 500;
 threads=[]
 errors=[]
-dir_path='G:/test/'
+dir_path='G:/test_01/'
 test_id=0
+thread_num=0
+linkQueue = multiprocessing.Queue(maxlinksize);
+errorQueue = multiprocessing.Queue();
 
 def num2deg(xtile, ytile, zoom):
     n = 2.0 ** zoom
@@ -52,6 +56,7 @@ def xyz2path(x,y,zoom):
 def DownloadImage(image_url,path):
     try:
         f=urllib2.urlopen(image_url,timeout = 30).read()
+        print image_url
     except Exception,e:
         print 'error:'+path
         return -1
@@ -60,44 +65,70 @@ def DownloadImage(image_url,path):
     fw.close()
     return 1
 
-def DownloadTile(zoom,x,y):
+def DownloadTile(zoom,x,y,count):
         sourceurl=xyz2url(x,y,zoom)
         path=xyz2path(x,y,zoom)
         if (DownloadImage(sourceurl,path)!=-1):
             pass
         else:
-            errors.append({'zoom':zoom,'x':x,'y':y})
-
-thread_num=0
-for zoom in range(0,7):
-    this_xy=2**(zoom)
-    for x in range(0,this_xy):
-        try:
-            s_zoom='%d/'%zoom
-            s_x='%d'%x
-            os.makedirs(dir_path+s_zoom+s_x)
-        except Exception,e:
-            pass
-        for y in range(0,this_xy):
-            th = threading.Thread(target=DownloadTile, args=(zoom,x,y))
-            th.start()
-            threads.append(th)
-            thread_num+=1
-            if thread_num==50:
-                print "OK"
-                for th in threads:
-                    th.join()
-                thread_num=0
+            #errors.append({'zoom':zoom,'x':x,'y':y})
+            errorQueue.put_nowait(dict(x=x,y=y,z=zoom,count=count+1));
 
 
-print len(errors)
-while len(errors)>0:
-    print 'now errors=',len(errors)
-    current_errors=errors
-    del errors[:]
-    for error in current_errors:
-        th = threading.Thread(target=DownloadTile, args=(error['zoom'],error['x'],error['y']))
-        th.start()
-        threads.append(th)
-    for th in threads:
-        th.join()
+
+def InsertURLInfo():
+    for zoom in range(0,7):
+        this_xy=2**(zoom)
+        for x in range(0,this_xy):
+            try:
+                s_zoom='%d/'%zoom
+                s_x='%d'%x
+                os.makedirs(dir_path+s_zoom+s_x)
+            except Exception,e:
+                pass
+            for y in range(0,this_xy):
+                isWaiting = 0
+                while isWaiting == 0:
+                    try:
+                        linkQueue.put_nowait(dict(x=x,y=y,z=zoom,count=0));
+                        isWaiting=1
+                    except:
+                        sleep(10)
+
+
+def downLoadImg(download_status):
+    if download_status=='normal':
+        current_Quene = linkQueue
+    elif download_status=='error':
+        current_Quene = errorQueue
+    print current_Quene;
+    print current_Quene.qsize();
+    while current_Quene.qsize() > 0 :
+        isWaiting = 0;
+        while isWaiting == 0:
+            try:
+                urlInfo = current_Quene.get_nowait();
+                if urlInfo['count'] >= max_downloadFrequency:
+                    pass;
+                    continue;
+                print urlInfo;
+                DownloadTile(urlInfo['z'],urlInfo['x'],urlInfo['y'],urlInfo['count']);
+                isWaiting = 1;
+            except:
+                print "oops"
+                sleep(0.5);
+    if download_status=='normal':
+        downLoadImg('error');
+
+def main():
+    cacheURL = multiprocessing.Process(target = InsertURLInfo)
+    cacheURL.start();
+    sleep(1);
+    for i in range(50):
+        download = multiprocessing.Process(target = downLoadImg,args = ('normal',))
+        download.start();
+    print "finish!!!!~~~"
+
+if __name__ == '__main__':
+    main()
+

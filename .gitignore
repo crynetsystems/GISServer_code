@@ -2,7 +2,7 @@
 logs
 *.log
 npm-debug.log*
-
+arcgisdownloader.pyc
 # Runtime data
 pids
 *.pid

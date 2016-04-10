@@ -10,7 +10,7 @@ maxthreads = 50;
 maxlinksize = 500;
 process_pool=[]
 errors=[]
-dir_path='G:/test_01/'
+dir_path='H:/test_01/'
 test_id=0
 thread_num=0
 max_downloadFrequency = 20
@@ -53,30 +53,32 @@ def xyz2path(x,y,zoom):
     return dir_path+s_zoom+s_x+s_y+'.jpg'
 
 def DownloadImage(image_url,path):
+    if os.path.isfile(path):
+        return 1
     try:
-        f=urllib2.urlopen(image_url,timeout = 30).read()
-        print path
+        f=urllib2.urlopen(image_url,timeout = 5).read()
     except Exception,e:
         print 'error:'+e
         return -1
+    print "download-"+path
     fw = open(path, 'wb')
     fw.write(f)
     fw.close()
     return 1
 
-def DownloadTile(zoom,x,y,count):
+def DownloadTile(zoom,x,y,count,errorQueue):
         sourceurl=xyz2url(x,y,zoom)
         path=xyz2path(x,y,zoom)
         if (DownloadImage(sourceurl,path)!=-1):
             pass
         else:
-            #errors.append({'zoom':zoom,'x':x,'y':y})
-            errorQueue.put_nowait(dict(x=x,y=y,z=zoom,count=count+1));
+            print 'error=',x,y,zoom
+            errorQueue.put(dict(x=x,y=y,z=zoom,count=count+1));
 
 
 
 def InsertURLInfo(linkQueue):
-    for zoom in range(0,7):
+    for zoom in range(0,10):
         this_xy=2**(zoom)
         for x in range(0,this_xy):
             try:
@@ -86,7 +88,7 @@ def InsertURLInfo(linkQueue):
             except Exception,e:
                 pass
             for y in range(0,this_xy):
-                linkQueue.put(dict(x=x,y=y,z=zoom,count=0));
+                linkQueue.put(dict(x=x,y=y,z=zoom,count=0))
 
 
 def downLoadImg(download_status,linkQueue,errorQueue):
@@ -100,13 +102,12 @@ def downLoadImg(download_status,linkQueue,errorQueue):
             try:
                 urlInfo = current_Quene.get_nowait();
                 if urlInfo['count'] >= max_downloadFrequency:
-                    pass;
+                    print "oh,just download fall..."
                     continue;
-                DownloadTile(urlInfo['z'],urlInfo['x'],urlInfo['y'],urlInfo['count']);
+                DownloadTile(urlInfo['z'],urlInfo['x'],urlInfo['y'],urlInfo['count'],errorQueue);
                 isWaiting = 1;
             except:
-                print "oops"
-                sleep(0.5);
+                sleep(0.01);
     if download_status=='normal':
         downLoadImg('error',linkQueue,errorQueue);
 
@@ -117,8 +118,7 @@ if __name__ == '__main__':
     cacheURL.start();
     sleep(1);
 
-    for i in range(0,50):
+    for i in range(0,1000):
         download = multiprocessing.dummy.Process(target = downLoadImg,args = ('normal',linkQueue,errorQueue))
         download.start();
     print "start!!!!~~~"
-

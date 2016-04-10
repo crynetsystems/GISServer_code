@@ -57,10 +57,8 @@ def DownloadImage(image_url,path):
         return 1
     try:
         f=urllib2.urlopen(image_url,timeout = 5).read()
-    except Exception,e:
-        print 'error:'+e
+    except:
         return -1
-    print "download-"+path
     fw = open(path, 'wb')
     fw.write(f)
     fw.close()
@@ -72,20 +70,20 @@ def DownloadTile(zoom,x,y,count,errorQueue):
         if (DownloadImage(sourceurl,path)!=-1):
             pass
         else:
-            print 'error=',x,y,zoom
+            print 'error:','zoom=',zoom,'x=',x,'y=',y
             errorQueue.put(dict(x=x,y=y,z=zoom,count=count+1));
 
 
 
 def InsertURLInfo(linkQueue):
-    for zoom in range(0,10):
+    for zoom in range(0,11):
         this_xy=2**(zoom)
         for x in range(0,this_xy):
             try:
                 s_zoom='%d/'%zoom
                 s_x='%d'%x
                 os.makedirs(dir_path+s_zoom+s_x)
-            except Exception,e:
+            except:
                 pass
             for y in range(0,this_xy):
                 linkQueue.put(dict(x=x,y=y,z=zoom,count=0))
@@ -121,4 +119,5 @@ if __name__ == '__main__':
     for i in range(0,1000):
         download = multiprocessing.dummy.Process(target = downLoadImg,args = ('normal',linkQueue,errorQueue))
         download.start();
+        sleep(0.001)
     print "start!!!!~~~"

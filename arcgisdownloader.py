@@ -57,8 +57,7 @@ def DownloadImage(image_url,path):
         return 1
     try:
         f=urllib2.urlopen(image_url,timeout = 5).read()
-    except Exception,e:
-        print 'error:'+e
+    except:
         return -1
     print "download-"+path
     fw = open(path, 'wb')

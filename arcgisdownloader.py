@@ -119,5 +119,8 @@ if __name__ == '__main__':
 
     for i in range(0,1000):
         download = multiprocessing.dummy.Process(target = downLoadImg,args = ('normal',linkQueue,errorQueue))
+        process_pool.append(download);
         download.start();
+    for i in range(0,1000):
+        process_pool[i].join()
     print "start!!!!~~~"

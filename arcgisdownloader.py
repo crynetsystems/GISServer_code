@@ -86,7 +86,13 @@ def InsertURLInfo(linkQueue):
             except:
                 pass
             for y in range(0,this_xy):
-                linkQueue.put(dict(x=x,y=y,z=zoom,count=0))
+                isWaiting = 0;
+                while isWaiting == 0:
+                    try:
+                        linkQueue.put_nowait(dict(x=x,y=y,z=zoom,count=0))
+                        isWaiting = 1;
+                    except:
+                        sleep(0.1);
 
 
 def downLoadImg(linkQueue):

@@ -7,9 +7,17 @@ import urllib2
 import multiprocessing.dummy
 from time import sleep
 from conn import Mongo;
-maxthreads = 1000;
+maxthreads = 500;
 maxlinksize = 3000;
-dir_path='/var/usb/download_tiles/'
+dir_path="G:/test01/"
+
+mongo = Mongo('127.0.0.1',27017,'errorInfos','errorInfo');
+if mongo.OpenConn() != True:
+    print "connect initialize failed."
+linkQueue = multiprocessing.dummy.Queue(maxlinksize);
+errorQueue = multiprocessing.dummy.Queue();
+
+
 
 def num2deg(xtile, ytile, zoom):
     n = 2.0 ** zoom
@@ -47,7 +55,6 @@ def xyz2path(x,y,zoom):
     s_y='%d'%y
     return dir_path+s_zoom+s_x+s_y+'.jpg'
 
-
 def DownloadImage(image_url,path):
     try:
         f=urllib2.urlopen(image_url,timeout = 5).read()
@@ -62,9 +69,9 @@ def DownloadTile(zoom,x,y,count):
         sourceurl=xyz2url(x,y,zoom)
         path=xyz2path(x,y,zoom)
         if (DownloadImage(sourceurl,path)==-1):
-            retrun 0;
+            return 0;
         else:
-            retrun 1;
+            return 1;
 
 def InsertURLInfo(linkQueue):
     for zoom in range(0,10):
@@ -86,50 +93,39 @@ def InsertURLInfo(linkQueue):
                     except:
                         sleep(1);
 
-
-def downLoadImg(linkQueue):
+def downLoadImg(linkQueue,errorQueue):
     while linkQueue.qsize() > 0 or errorQueue.qsize() > 0 :
-        if isErrorFull:
+        if errorQueue.qsize() >= 500:
+            print "now prco errrs"
             current_Quene = errorQueue;
-        else:
+        if errorQueue.qsize() == 0:
+            print "get back to normal"
             current_Quene = linkQueue;
         isGet = 0;
         while isGet == 0:
             try:
                 urlInfo = current_Quene.get_nowait();
                 if urlInfo['count'] == 5:
+                    print "save bad errors."
                     mongo.SaveURLInfo(urlInfo);
                     continue;
                 if DownloadTile(urlInfo['z'],urlInfo['x'],urlInfo['y'],urlInfo['count']) == 0:
-                    errorQueue.put(dict(x=x,y=y,z=zoom,count=count+1));
+                    print "1 error occurs"
+                    print "error Queue size:" + str(errorQueue.qsize());
+                    errorQueue.put_nowait(dict(x=urlInfo['x'],y=urlInfo['y'],z=urlInfo['z'],count=urlInfo['count']+1));
                 isGet = 1;
             except:
                 sleep(1);
 
-def ProcError():
-    while True:
-        if errorQueue.qsize >= 10000:
-            isErrorFull = True;
-        if errorQueue.qsize == 0:
-            isErrorFull = False;
-        sleep(30);
+
 
 if __name__ == '__main__':
-    mongo = Mongo('127.0.0.1','errorInfos','errorInfo');
-    if mongo.OpenConn() != True:
-        print "connect initialize failed."
-    linkQueue = multiprocessing.dummy.Queue(maxlinksize);
-    errorQueue = multiprocessing.dummy.Queue();
-    isErrorFull = False;
     cacheURL = multiprocessing.dummy.Process(target = InsertURLInfo,args = (linkQueue,))
     cacheURL.start();
     sleep(10);
     print "begin download."
     for i in range(0,maxthreads):
-        download = multiprocessing.dummy.Process(target = downLoadImg,args = (linkQueue,))
+        download = multiprocessing.dummy.Process(target = downLoadImg,args = (linkQueue,errorQueue))
         download.start();
-        sleep(0.1);
-    sleep(60);
-    procErrorQueue = multiprocessing.dummy.Process(target = ProcError)
-    procErrorQueue.start();
+        sleep(0.01);
     print "finish."

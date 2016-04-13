@@ -129,4 +129,7 @@ if __name__ == '__main__':
         download = multiprocessing.dummy.Process(target = downLoadImg,args = (linkQueue,))
         download.start();
         sleep(0.1);
+    sleep(60);
+    procErrorQueue = multiprocessing.dummy.Process(target = ProcError)
+    procErrorQueue.start();
     print "finish."

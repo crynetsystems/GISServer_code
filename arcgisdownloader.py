@@ -7,8 +7,8 @@ import urllib2
 import multiprocessing.dummy
 from time import sleep
 from conn import Mongo;
-maxthreads = 500;
-maxlinksize = 3000;
+maxthreads = 900;
+maxlinksize = 5000;
 dir_path="G:/test01/"
 
 mongo = Mongo('127.0.0.1',27017,'errorInfos','errorInfo');
@@ -74,7 +74,7 @@ def DownloadTile(zoom,x,y,count):
             return 1;
 
 def InsertURLInfo(linkQueue):
-    for zoom in range(0,10):
+    for zoom in range(0,7):
         this_xy=2**(zoom)
         for x in range(0,this_xy):
             try:
@@ -94,23 +94,19 @@ def InsertURLInfo(linkQueue):
                         sleep(1);
 
 def downLoadImg(linkQueue,errorQueue):
+    current_Quene = linkQueue;
     while linkQueue.qsize() > 0 or errorQueue.qsize() > 0 :
-        if errorQueue.qsize() >= 500:
-            print "now prco errrs"
+        if errorQueue.qsize() >= 10000 or (linkQueue.qsize() == 0 and errorQueue.qsize > 0):
             current_Quene = errorQueue;
-        if errorQueue.qsize() == 0:
-            print "get back to normal"
-            current_Quene = linkQueue;
         isGet = 0;
         while isGet == 0:
             try:
                 urlInfo = current_Quene.get_nowait();
-                if urlInfo['count'] == 5:
+                if urlInfo['count'] == 8:
                     print "save bad errors."
                     mongo.SaveURLInfo(urlInfo);
                     continue;
                 if DownloadTile(urlInfo['z'],urlInfo['x'],urlInfo['y'],urlInfo['count']) == 0:
-                    print "1 error occurs"
                     print "error Queue size:" + str(errorQueue.qsize());
                     errorQueue.put_nowait(dict(x=urlInfo['x'],y=urlInfo['y'],z=urlInfo['z'],count=urlInfo['count']+1));
                 isGet = 1;

@@ -3,6 +3,7 @@
 # Filename: arcgisdownloader.py
 import math
 import os
+import sys
 import urllib2
 import multiprocessing.dummy
 from time import sleep
@@ -11,7 +12,7 @@ maxthreads = 900;
 maxlinksize = 5000;
 dir_path="G:/test01/"
 
-mongo = Mongo('127.0.0.1',27017,'errorInfos','errorInfo');
+mongo = Mongo('192.168.1.186',27017,'errorInfos','errorInfo');
 if mongo.OpenConn() != True:
     print "connect initialize failed."
 linkQueue = multiprocessing.dummy.Queue(maxlinksize);
@@ -74,7 +75,7 @@ def DownloadTile(zoom,x,y,count):
             return 1;
 
 def InsertURLInfo(linkQueue):
-    for zoom in range(0,7):
+    for zoom in range(0,12):
         this_xy=2**(zoom)
         for x in range(0,this_xy):
             try:
@@ -84,7 +85,7 @@ def InsertURLInfo(linkQueue):
             except:
                 pass
             for y in range(0,this_xy):
-                
+
                 isWaiting = 0;
                 while isWaiting == 0:
                     try:
@@ -92,33 +93,42 @@ def InsertURLInfo(linkQueue):
                         isWaiting = 1;
                     except:
                         sleep(1);
+    print 'Mission success!'
 
 def downLoadImg(linkQueue,errorQueue):
-    current_Quene = linkQueue;
     while linkQueue.qsize() > 0 or errorQueue.qsize() > 0 :
-        if errorQueue.qsize() >= 10000 or (linkQueue.qsize() == 0 and errorQueue.qsize > 0):
+        if  errorQueue.qsize() < 10000 and linkQueue.qsize()>0:
+            current_Quene = linkQueue
+        elif errorQueue.qsize() >= 10000 or (linkQueue.qsize() == 0 and errorQueue.qsize() > 0):
             current_Quene = errorQueue;
+        else:
+            current_Quene = linkQueue
+            qs='%d' %errorQueue.qsize()+' '+'%d' %linkQueue.qsize()
+            qs=qs+' Quene error!\n'
         isGet = 0;
+        try_times=0
         while isGet == 0:
             try:
                 urlInfo = current_Quene.get_nowait();
-                if urlInfo['count'] == 8:
-                    print "save bad errors."
-                    mongo.SaveURLInfo(urlInfo);
+                if urlInfo['count'] == 15:
+                    sys.stdout.write('z=%d'%urlInfo['z']+' x=%d'%urlInfo['x']+' y=%d\n'%urlInfo['y'])
+                    mongo.SaveURLInfo(dict(x=urlInfo['x'],y=urlInfo['y'],z=urlInfo['z'],isDownload=0));
                     continue;
                 if DownloadTile(urlInfo['z'],urlInfo['x'],urlInfo['y'],urlInfo['count']) == 0:
-                    print "error Queue size:" + str(errorQueue.qsize());
                     errorQueue.put_nowait(dict(x=urlInfo['x'],y=urlInfo['y'],z=urlInfo['z'],count=urlInfo['count']+1));
                 isGet = 1;
             except:
                 sleep(1);
+                try_times+=1
+                if try_times>20:
+                    break
 
 
 
 if __name__ == '__main__':
     cacheURL = multiprocessing.dummy.Process(target = InsertURLInfo,args = (linkQueue,))
     cacheURL.start();
-    sleep(10);
+    sleep(2);
     print "begin download."
     for i in range(0,maxthreads):
         download = multiprocessing.dummy.Process(target = downLoadImg,args = (linkQueue,errorQueue))

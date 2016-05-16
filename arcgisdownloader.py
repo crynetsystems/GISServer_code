@@ -7,14 +7,9 @@ import sys
 import urllib2
 import multiprocessing.dummy
 from time import sleep
-from conn import Mongo;
 maxthreads = 900;
 maxlinksize = 5000;
 dir_path="G:/test01/"
-
-mongo = Mongo('192.168.1.186',27017,'errorInfos','errorInfo');
-if mongo.OpenConn() != True:
-    print "connect initialize failed."
 linkQueue = multiprocessing.dummy.Queue(maxlinksize);
 errorQueue = multiprocessing.dummy.Queue();
 
@@ -110,12 +105,8 @@ def downLoadImg(linkQueue,errorQueue):
         while isGet == 0:
             try:
                 urlInfo = current_Quene.get_nowait();
-                if urlInfo['count'] == 15:
-                    sys.stdout.write('z=%d'%urlInfo['z']+' x=%d'%urlInfo['x']+' y=%d\n'%urlInfo['y'])
-                    mongo.SaveURLInfo(dict(x=urlInfo['x'],y=urlInfo['y'],z=urlInfo['z'],isDownload=0));
-                    continue;
                 if DownloadTile(urlInfo['z'],urlInfo['x'],urlInfo['y'],urlInfo['count']) == 0:
-                    errorQueue.put_nowait(dict(x=urlInfo['x'],y=urlInfo['y'],z=urlInfo['z'],count=urlInfo['count']+1));
+                    errorQueue.put_nowait(dict(x=urlInfo['x'],y=urlInfo['y'],z=urlInfo['z'],count=urlInfo['count']));
                 isGet = 1;
             except:
                 sleep(1);
